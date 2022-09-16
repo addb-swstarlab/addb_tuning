@@ -1,27 +1,27 @@
-### data file information
+### Data file information
 
-> data
-    > configs
-        > ADDB
-            > redis
+- data
+    - configs
+        - ADDB
+            - redis
                 - addb_config0.conf
                 - addb_config99.conf
-            > rocksdb
+            - rocksdb
                 - addb_config0.conf
                 - addb_config99.conf
-            > spark
+            - spark
                 - addb_config0.conf
                 - addb_config99.conf
-        > Redis
+        - Redis
             - config1.conf
             - config5000.conf
-        > RocksDB
+        - RocksDB
             - config1.cnf
             - config20000.cnf
-        > Spark
+        - Spark
             - addb_config0.conf
             - addb_config99.conf
-    > results
+    - results
         - ADDB_results.csv
         - Redis_results.csv
         - RocksDB_results.csv
