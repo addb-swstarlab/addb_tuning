@@ -1,12 +1,14 @@
 import os
 import argparse
 import numpy as np
+from scipy.stats import pearsonr
+from sklearn.metrics import mean_squared_error
+
 from utils import get_logger
 from dbmsinfos import Redis, RocksDB, Spark, ADDB
 from train import train_model
 from train_addb import addb_train_model
-from scipy.stats import pearsonr
-from sklearn.metrics import mean_squared_error
+from ga import ADDBProblem, genetic_algorithm
 
 os.system('clear')
 
@@ -19,6 +21,7 @@ parser.add_argument('--batch_size', type=int, default=32, help='Define model bat
 parser.add_argument('--redis_param', type=str, help='Define redis prediction model pt path')
 parser.add_argument('--rocksdb_param', type=str, help='Define rocksdb prediction model pt path')
 parser.add_argument('--spark_param', type=str, help='Define spark prediction model pt path')
+parser.add_argument('--population', type=int, default=100, help='Define pop_size on genetic algorithm')
 
 opt = parser.parse_args()
 
@@ -71,6 +74,10 @@ def main():
     logger.info('[MSE SCORE]')
     logger.info(f'AVERAGE MSE SCORE : {mse_res:.4f}')
     
+    if opt.dbms == 'ADDB':
+        problem = ADDBProblem(dbms, best_model)
+        res = genetic_algorithm(problem=problem, pop_size=opt.population)
+        
 
 if __name__ == '__main__':
     try:
