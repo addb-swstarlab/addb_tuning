@@ -1,10 +1,11 @@
 #!/bin/bash
+user=user_name
 
-cd /home/user
-source /home/user/.bashrc
+cd /home/${user}
+source /home/${user}/.bashrc
 
 cd addb-spark
 
-addb_spark -start_conf '/home/user/addb-spark/test_spark.conf'
+addb_spark -start_conf '/home/${user}/addb-spark/test_spark.conf'
 
 sleep 30
