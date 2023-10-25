@@ -1,6 +1,7 @@
 import logging
 from models.configs import SPARK_CONF_PATH
 
+# Parameters based on Spark version 2.0.2
 class SparkParameters():
     def __init__(self):
         self.boolean_parameters = {'spark.broadcast.compress': [['true', 'false'], 'true'],
