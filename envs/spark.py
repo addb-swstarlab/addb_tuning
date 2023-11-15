@@ -75,6 +75,8 @@ class SparkParameters():
                 v = 'true' if round(values[i])==1 else 'false'
             elif p in self.continous_parameters:
                 v = round(values[i], 1)
+            elif p in self.unit_gb_parameters:
+                v = str(round(values[i]))+'g'
             elif p in self.unit_kb_parameters:
                 v = str(round(values[i]))+'k'
             elif p in self.unit_mb_parameters:
