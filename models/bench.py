@@ -1,44 +1,29 @@
 import os, logging
 import subprocess
-import pandas as pd
+import numpy as np
 from models.configs import *
-from baxus.benchmarks.benchmark_function import Benchmark
 
-class SparkBench(Benchmark):
-    def __init__(self, dim, ub, lb, sp, bench_type=None, history_dir=None):
-        super().__init__(dim=dim, ub=ub, lb=lb, noise_std=0)
+class SparkBench:
+    def __init__(self, sp, bench_type=None, history_dir=None):
+        self.dim = len(sp)
+        self.ub = sp.ub
+        self.lb = sp.lb
         self.sp = sp # spark parameter infos
         self.bench_type = bench_type
-        self.history_dir = history_dir
-        
-        if self.history_dir is not None:
-            os.makedirs(self.history_dir, exist_ok=True)
     
-    def _save_history(self, spark_conf_dict:dict, res):
-        spark_conf_pd = pd.DataFrame.from_dict(data=spark_conf_dict, orient='index')
-        
-        if os.path.exists(os.path.join(self.history_dir, 'configuration.csv')):
-            entire_spark_conf_pd = pd.read_csv(os.path.join(self.history_dir, 'configuration.csv'), index_col=0)
-            entire_spark_conf_pd = pd.concat([entire_spark_conf_pd, spark_conf_pd], axis=1)
-            entire_spark_conf_pd.to_csv(os.path.join(self.history_dir, 'configuration.csv'))
-        else:
-            spark_conf_pd.to_csv(os.path.join(self.history_dir, 'configuration.csv'))
-            
-        with open(os.path.join(self.history_dir, 'res.txt'), 'a') as f:
-            f.write(f'{res}\n')
-    
-    def __call__(self, x):
+    def benchmark(self, x:np.array) -> float:
         spark_conf_dict = self.sp.save_configuration_file(x)
         self.execute_spark_bench()
-        self.res = self.get_results()
+        try:
+            self.res = - self.get_results()
+        except IndexError:
+            logging.error("Invalid Configurations, pass testing this configuration")
+            self.res = - 10000
         logging.info("############################")
-        logging.info(f"##### runtime: {self.res:.2f} ######")
+        logging.info(f"##### runtime: {-self.res:.2f} ######")
         logging.info("############################")
         
-        if self.history_dir is not None:
-            self._save_history(spark_conf_dict, self.res)
-        
-        return self.res
+        return round(self.res, 2)
         
     def execute_spark_bench(self):
         # if self.bench_type is not defined (self.bench_type is None), AssertionError
