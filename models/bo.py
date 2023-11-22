@@ -39,15 +39,21 @@ class BO_Tuner:
         '''
         configs = data.iloc[:,:-2]
         res = - data[['res']]
-        wks = data[['workload_type']]
+        wks = data[cfg.QUERY_FEATURE_NAMES]
         
-        max_idx = res[wks.workload_type==self.trg_wk].idxmax().item()
+        trg_equal_wks_idx = wks.eq(self.sb.get_workload_feature(self.trg_wk)).all(axis=1)
+        if sum(trg_equal_wks_idx) == 0:
+            logging.info("There is no history data, replacing similar workload data.")
+            ## TODO: instead of replacing, running default? setting to get results
+            s =  wks.eq(self.sb.get_workload_feature(self.trg_wk)).sum(axis=1)
+            max_idx = res[s==s.max()].idxmax().item()
+        else:
+            max_idx = res[wks.eq(self.sb.get_workload_feature(self.trg_wk)).all(axis=1)].idxmax().item()
         
         best_observed_res = res.loc[max_idx].item()
         best_observed_config = configs.loc[max_idx]
         
         return best_observed_config, best_observed_res
-
     
     def load_history_data(self):
         _data = pd.read_csv(self.history_data_path, index_col=0)
@@ -59,7 +65,7 @@ class BO_Tuner:
         train_x.replace(to_replace=r'[kgm]',value='', regex=True, inplace=True)
         train_x = train_x.astype(float)
         #########################################################################
-        train_wk = data[['workload_type']]
+        train_wk = data[cfg.QUERY_FEATURE_NAMES]
         train_y = - data[['res']]
         
         train_x_knobs = torch.tensor(train_x.values)#.cuda()
@@ -83,7 +89,7 @@ class BO_Tuner:
         saved_data = pd.DataFrame(data=datas, columns=cols)
         
         if os.path.exists(self.history_data_path):
-            history_saved_path = get_filename(cfg.SAVE_HISTORY_FOLDER_PATH,'history_data','.csv')
+            history_saved_path = get_filename(cfg.SAVE_HISTORY_FOLDER_PATH,'history_feature_data','.csv')
             os.system(f'cp {self.history_data_path} {os.path.join(cfg.SAVE_HISTORY_FOLDER_PATH, history_saved_path)}')
             logging.info(f"## Saved old history data to .. {os.path.join(cfg.SAVE_HISTORY_FOLDER_PATH, history_saved_path)}")
             
@@ -98,6 +104,8 @@ class BO_Tuner:
         return mll, model
 
     def optimize_acqf_and_get_observation(self, acq_func, bounds, trg_wk): # maximize
+        qf = self.sb.get_workload_feature(trg_wk)
+        fixed_features = {len(self.sb)+_: qf[_] for _ in range(len(qf))}
         candidate, acq_value = optimize_acqf(acq_function=acq_func,
                                             bounds=bounds,
                                             q=1,
@@ -110,14 +118,10 @@ class BO_Tuner:
         new_x = new_x.squeeze()[:-1] # remove query information
         new_x[:-2] = np.round(new_x[:-2])
         new_x[-2:] = np.round(new_x[-2:], 1)
+        
         new_obj = self.sb.benchmark(new_x)
-
-        ## TODO:
-        ## Benchmarking step
-        # new_obj = regr.predict(new_x)
-        # new_x = torch.tensor(new_x)#.cuda()
         new_obj = torch.tensor(new_obj)#.cuda()
-        # return new_x, new_obj
+        
         return candidate, new_obj
 
     def optimize(self):
