@@ -58,19 +58,14 @@ class BO_Tuner:
     def load_history_data(self):
         _data = pd.read_csv(self.history_data_path, index_col=0)
         data = _data.copy()
-        train_x = data.iloc[:,:-2]
-        ##### Preprocess data removing unit and converting boolean into int #####
-        train_x.replace(False, 0, inplace=True)
-        train_x.replace(True, 1, inplace=True)
-        train_x.replace(to_replace=r'[kgm]',value='', regex=True, inplace=True)
-        train_x = train_x.astype(float)
-        #########################################################################
+        train_x = data[self.sb.parameter_names]
+
         train_wk = data[cfg.QUERY_FEATURE_NAMES]
         train_y = - data[['res']]
         
-        train_x_knobs = torch.tensor(train_x.values)#.cuda()
-        train_x_wks = torch.tensor(train_wk.values)#.cuda()
-        train_y = torch.tensor(train_y.values).squeeze()#.cuda()
+        train_x_knobs = torch.tensor(train_x.values).to(dtype=torch.double)
+        train_x_wks = torch.tensor(train_wk.values).to(dtype=torch.double)
+        train_y = torch.tensor(train_y.values).to(dtype=torch.double).squeeze
         
         best_observed_config, best_observed_res = self._get_best_observed(data)
         
@@ -96,8 +91,8 @@ class BO_Tuner:
         saved_data.to_csv(self.history_data_path)
         
     def initialize_model(self, train_x1, train_x2, train_y, state_dict=None):
-        model = CustomGP(train_x1, train_x2, train_y)#.cuda()
-        mll = ExactMarginalLogLikelihood(model.likelihood, model)#.cuda()
+        model = CustomGP(train_x1, train_x2, train_y).to(train_x1)
+        mll = ExactMarginalLogLikelihood(model.likelihood, model)
         
         if state_dict is not None:
             model.load_state_dict(state_dict)
