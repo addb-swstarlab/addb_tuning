@@ -20,6 +20,8 @@ class SparkBench:
 
         self._set_query_features()
 
+        self.target_workload_feature = self.get_workload_feature(self.bench_type, self.sql_path)
+
     def __len__(self):
         return self.dim
 
@@ -28,30 +30,48 @@ class SparkBench:
         cfg.set_query_feature_name(list(self.q_features.columns))
         self.q_len = len(self.q_features.columns)
         if self.sql_path is not None:
-            self.q_feat_gen = QueryFeatureGenerator(self.sql_path)
+            self.q_feat_gen = QueryFeatureGenerator(file_path=self.sql_path,
+                                                    positional_encoding=True
+                                                    )
+            self.q_num = len(self.q_feat_gen.sequence_feature)
+            with open(self.sql_path, 'r') as file:
+                sql_query = file.readlines()
+            logging.info("#########################################")
+            logging.info(f"requested sql: {sql_query[0]}")
+            logging.info("#########################################")
+            file.close()
+            del sql_query
+        else:
+            self.q_num = 1 if self.bench_type != 15 else 3
 
     def get_workload_feature(self, bench_type:int=None, sql_path:str=None) -> list:
         if bench_type is None:
             bench_type = self.bench_type
         if sql_path is None:
             sql_path = self.sql_path
-        assert (bench_type is not None and sql_path is None) or (bench_type is None and sql_path is not None), "Please use only one option, bench_type or sql_path"
+        assert (bench_type is not None and sql_path is None) or (bench_type is None and sql_path is not None), f"Please use only one option, bench_type({bench_type}) or sql_path({sql_path}).."
         
         if bench_type is not None:
             b_feature = self.q_features.iloc[int(bench_type)-1].values
+            b_feature = np.round(b_feature, 1)
         else:
-            b_feature = self.q_feat_gen.get_query_vector()
+            b_feature = self.q_feat_gen.workload_feature.values[0]
+            b_feature = np.round(b_feature, 1)
         
         return list(b_feature)
     
     def benchmark(self, x:np.array) -> float:
         spark_conf_dict = self.sp.save_configuration_file(x)
-        self.execute_spark_bench()
+        self._execute_spark_bench()
         try:
-            self.res = - self.get_results()
+            self.res = - self._get_results()
         except IndexError:
             logging.error("Invalid Configurations, pass testing this configuration")
-            self.res = - 10000
+            self.res = -10000
+        
+        if self.res == 0:
+            self.res = -10000
+        
         logging.info("############################")
         logging.info(f"##### runtime: {-self.res:.2f} ######")
         logging.info("############################")
@@ -90,5 +110,9 @@ class SparkBench:
                 runtime = l.split(' ')[-2][1:]
                 times.append(runtime)
 
-        res = times[-1] if self.bench_type!=15 else times[1]
-        return float(res)
+         ## If there are errors in several queries
+        if len(times) != self.q_num:
+            res = 10000
+        else:
+            res = np.sum(times, dtype=float)
+        return res
