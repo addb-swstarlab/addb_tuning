@@ -99,20 +99,27 @@ class SparkBench:
         f.writelines(output)
         f.close()
         
-    def get_results(self):
-        f = open(TPCH_RESULT_PATH, 'r')
+    def get_results(self) -> float:
+        f = open(cfg.TPCH_RESULT_PATH, 'r')
         result_log = f.readlines()
         f.close()
         
         times = []
         for l in result_log:
-            if l.find('seconds') != -1:
+            if l.find('seconds') != -1 and l.find('selected') != -1:
                 runtime = l.split(' ')[-2][1:]
                 times.append(runtime)
 
          ## If there are errors in several queries
-        if len(times) != self.q_num:
+        if len(times) != self.q_num:            
             res = 10000
+            logging.info("**************************************************")
+            logging.info("bad results showed..")
+            logging.info(result_log)
+            logging.info("**************************************************")
         else:
             res = np.sum(times, dtype=float)
+        
+        logging.info(f"Recorded times: {times}")
+        
         return res
