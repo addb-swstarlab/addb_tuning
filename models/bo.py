@@ -155,7 +155,7 @@ class BO_Tuner:
         train_x_wks = torch.cat([train_x_wks, torch.round(new_x[:, len(self.sb):], decimals=1)])
         train_y = torch.cat([train_y, new_res.unsqueeze(0)])
         
-        self.save_history_data(train_x_knobs, train_x_wks, train_y)
+        self._save_history_data(train_x_knobs, train_x_wks, train_y)
         
         _, _, _, best_observed_config, best_observed_res_value = self._load_history_data()
     
