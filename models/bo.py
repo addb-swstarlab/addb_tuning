@@ -22,6 +22,9 @@ class BO_Tuner:
         self.history_data_path = history_data_path
         self.best_observed_configs_all = []
         self.best_observed_res_all = []
+
+        if self.trg_wk is None:
+            self.trg_wk = -1
         
         self._set_bounds()
     
@@ -30,7 +33,7 @@ class BO_Tuner:
         upper = torch.Tensor(self.sb.ub)
         
         self.bounds = torch.stack([lower, upper])
-        self.bounds = torch.concat([self.bounds, torch.ones(2,1)*self.trg_wk], dim=1) # add condition range
+        self.bounds = torch.concat([self.bounds, torch.ones(2,len(cfg.QUERY_FEATURE_NAMES))*self.trg_wk], dim=1).double() # add condition range
         
         
     def _get_best_observed(self, data:pd.DataFrame) -> (float, pd.Series):
@@ -41,21 +44,20 @@ class BO_Tuner:
         res = - data[['res']]
         wks = data[cfg.QUERY_FEATURE_NAMES]
         
-        trg_equal_wks_idx = wks.eq(self.sb.get_workload_feature(self.trg_wk)).all(axis=1)
+        trg_equal_wks_idx = wks.eq(self.sb.target_workload_feature).all(axis=1)
         if sum(trg_equal_wks_idx) == 0:
             logging.info("There is no history data, replacing similar workload data.")
-            ## TODO: instead of replacing, running default? setting to get results
             s =  wks.eq(self.sb.get_workload_feature(self.trg_wk)).sum(axis=1)
             max_idx = res[s==s.max()].idxmax().item()
         else:
-            max_idx = res[wks.eq(self.sb.get_workload_feature(self.trg_wk)).all(axis=1)].idxmax().item()
+            max_idx = res[wks.eq(self.sb.target_workload_feature).all(axis=1)].idxmax().item()
         
         best_observed_res = res.loc[max_idx].item()
         best_observed_config = configs.loc[max_idx]
         
         return best_observed_config, best_observed_res
     
-    def load_history_data(self):
+    def _load_history_data(self):
         _data = pd.read_csv(self.history_data_path, index_col=0)
         data = _data.copy()
         train_x = data[self.sb.parameter_names]
@@ -65,13 +67,13 @@ class BO_Tuner:
         
         train_x_knobs = torch.tensor(train_x.values).to(dtype=torch.double)
         train_x_wks = torch.tensor(train_wk.values).to(dtype=torch.double)
-        train_y = torch.tensor(train_y.values).to(dtype=torch.double).squeeze
+        train_y = torch.tensor(train_y.values).to(dtype=torch.double).squeeze()
         
         best_observed_config, best_observed_res = self._get_best_observed(data)
         
         return train_x_knobs, train_x_wks, train_y, best_observed_config, best_observed_res
     
-    def save_history_data(self,x_knobs:torch.Tensor, x_wks:torch.Tensor, y:torch.Tensor):
+    def _save_history_data(self,x_knobs:torch.Tensor, x_wks:torch.Tensor, y:torch.Tensor):
         y = y.unsqueeze(1) if y.dim() != 2 else y
         
         knobs = x_knobs.cpu().detach().numpy()
@@ -98,19 +100,19 @@ class BO_Tuner:
             model.load_state_dict(state_dict)
         return mll, model
 
-    def optimize_acqf_and_get_observation(self, acq_func, bounds, trg_wk): # maximize
-        qf = self.sb.get_workload_feature(trg_wk)
+    def optimize_acqf_and_get_observation(self, acq_func, bounds): # maximize
+        qf = self.sb.target_workload_feature
         fixed_features = {len(self.sb)+_: qf[_] for _ in range(len(qf))}
         candidate, acq_value = optimize_acqf(acq_function=acq_func,
                                             bounds=bounds,
                                             q=1,
                                             num_restarts=5,
                                             raw_samples=20,
-                                            fixed_features={22:trg_wk} # fixed a workload feature
+                                            fixed_features=fixed_features
                                             )
         
         new_x = candidate.cpu().detach().numpy()
-        new_x = new_x.squeeze()[:-1] # remove query information
+        new_x = new_x.squeeze()[:len(self.sb)]
         new_x[:-2] = np.round(new_x[:-2])
         new_x[-2:] = np.round(new_x[-2:], 1)
         
@@ -119,6 +121,15 @@ class BO_Tuner:
         
         return candidate, new_obj
 
+    def recommend(self):
+        _, _, _, best_observed_config, best_observed_res_value = self._load_history_data()
+        logging.info(f"The best observed result in the requested sql: {best_observed_res_value}")
+        t0 = time.monotonic()
+        logging.info("Benchmarking the best recorded configuration...")
+        observed_res_value = self.sb.benchmark(best_observed_config)
+        t1 = time.monotonic()
+        logging.info(f"\n Recorded best value is {observed_res_value:4.2f}, time = {t1-t0:4.2f}")
+    
     def optimize(self):
         train_x_knobs, train_x_wks, train_y, best_observed_config, best_observed_res_value = self.load_history_data()
 
@@ -140,13 +151,13 @@ class BO_Tuner:
         
         new_x, new_res = self.optimize_acqf_and_get_observation(qEI, self.bounds, self.trg_wk)
         
-        train_x_knobs = torch.cat([train_x_knobs, new_x[:, :-1]])
-        train_x_wks = torch.cat([train_x_wks, new_x[:, -1].unsqueeze(0)])
+        train_x_knobs = torch.cat([train_x_knobs, torch.round(new_x[:, :len(self.sb)], decimals=1)])
+        train_x_wks = torch.cat([train_x_wks, torch.round(new_x[:, len(self.sb):], decimals=1)])
         train_y = torch.cat([train_y, new_res.unsqueeze(0)])
         
         self.save_history_data(train_x_knobs, train_x_wks, train_y)
         
-        _, _, _, best_observed_config, best_observed_res_value = self.load_history_data()
+        _, _, _, best_observed_config, best_observed_res_value = self._load_history_data()
     
         # self.best_observed_configs_all.append(best_observed_config)
         # self.best_observed_res_all.append(best_observed_res_value)
