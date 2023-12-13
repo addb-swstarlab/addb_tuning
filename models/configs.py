@@ -18,6 +18,8 @@ INCUMBENTS_RESULTS_PATH = os.path.join(HOME_PATH, PROJECT_NAME, 'results')
 HISTORY_DATA_PATH = os.path.join(HOME_PATH, PROJECT_NAME, 'history_feature_data.csv')
 SAVE_HISTORY_FOLDER_PATH = os.path.join(HOME_PATH, PROJECT_NAME, 'history')
 
+query_feature_names = ['joins', 'filters', 'aggregation', 'sorting', 'subqueries', 'grouping', 'customer', 'nation', 'part', 'region', 'lineitem', 'orders', 'partsupp', 'supplier']
+
 QUERY_FEATURE_TABLE_PATH = os.path.join(HOME_PATH, PROJECT_NAME, 'query_tables.csv')
 
 def set_query_feature_name(cols):
