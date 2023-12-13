@@ -131,7 +131,7 @@ class BO_Tuner:
         logging.info(f"\n Recorded best value is {observed_res_value:4.2f}, time = {t1-t0:4.2f}")
     
     def optimize(self):
-        train_x_knobs, train_x_wks, train_y, best_observed_config, best_observed_res_value = self.load_history_data()
+        train_x_knobs, train_x_wks, train_y, best_observed_config, best_observed_res_value = self._load_history_data()
 
         mll, model = self.initialize_model(train_x_knobs, train_x_wks, train_y)
         
