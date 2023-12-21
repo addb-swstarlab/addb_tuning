@@ -32,7 +32,9 @@ type=action(store_true)
 --tuning      : If you want to skip collecting observations(historical data) and to do actual tuning, trigger this
 ```
 ### Collecting historical data by running bayesian optimization..
-- If you want to run one of tpc-h query, ```{num}``` is in ```{1,...,22}```
+- If you want to run one of tpc-h query
+- ```{num}``` is in ```{1,...,22}```
+- ```{trial}``` is the number of iteration to collect history. It should be 2 or greater
 ```
-python main.py -q {num} -t {trail}
+python main.py -q {num} -t {trial}
 ```
