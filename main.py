@@ -10,7 +10,6 @@ import models.configs as cfg
 from models.bo import BO_Tuner
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-b', '--bo', type=str, default='vanilla')
 parser.add_argument('-q', '--query', type=int, default=1, help='Define a number of tpc-h query to test')
 parser.add_argument('-s', '--sqlfile', type=str, help='Provide sql file path to be tuned')
 parser.add_argument('-t', '--trials', type=int, default=1, help='Define a number of iteration to tune')
