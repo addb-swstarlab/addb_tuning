@@ -23,7 +23,7 @@ The results are saved on ```/observation``` named ```history_q01_20231122-00.csv
 ```
 type=int
 --query ,  -q : Define a number of tpc-h query to test
---trails,  -t : Define a number of iteration to tune
+--trials,  -t : Define a number of iteration to tune
 
 type=str
 --sqfile,  -s : Provide a required sql file path to be tuned
@@ -37,4 +37,19 @@ type=action(store_true)
 - ```{trial}``` is the number of iteration to collect history. It should be 2 or greater
 ```
 python main.py -q {num} -t {trial}
+python main.py --query {num} --trials {trial}
+```
+- If you wnat to run a specific sql file
+- ```{sql_path}``` is a path for required sql files
+```
+python main.py --sqlfile {sql_path} --trials {trial}
+python main.py -s {sql_path} -t {trial}
+```
+- Tuning mode
+```
+python main.py -s {sql_path} --tuning
+```
+or
+```
+python main.py -q {num} --tuning
 ```
